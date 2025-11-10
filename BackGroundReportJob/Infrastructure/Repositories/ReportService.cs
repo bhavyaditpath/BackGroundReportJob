@@ -77,10 +77,10 @@ namespace BackGroundReportJob.Infrastructure.Repositories
                 var filePath = Path.Combine(_reportDirectory, fileName);
 
                 var csv = new StringBuilder();
-                csv.AppendLine("Id,Name,RollNumber");
+                csv.AppendLine("Role,Name,RollNumber,Email");
 
                 foreach (var emp in employees)
-                    csv.AppendLine($"{emp.Id},{emp.Name},{emp.RollNumber}");
+                    csv.AppendLine($"{emp.Role},{emp.Name},{emp.RollNumber},{emp.Email}");
 
                 // 1️⃣ Save locally
                 await File.WriteAllTextAsync(filePath, csv.ToString());
