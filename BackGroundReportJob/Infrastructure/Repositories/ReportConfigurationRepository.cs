@@ -27,5 +27,22 @@ namespace BackGroundReportJob.Infrastructure.Repositories
                         || (r.Frequency == ReportFrequency.Yearly && now.Month == 1 && now.Day == 1 && now.Hour == 0 && now.Minute == 0)))
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<ReportConfigurationEntity>> GetAllAsync()
+        {
+            return await _context.ReportConfigurations.AsNoTracking().ToListAsync();
+        }
+
+        public async Task<ReportConfigurationEntity?> GetByIdAsync(Guid id)
+        {
+            return await _context.ReportConfigurations.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+        }
+
+        public async Task UpdateAsync(ReportConfigurationEntity entity)
+        {
+            _context.ReportConfigurations.Update(entity);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

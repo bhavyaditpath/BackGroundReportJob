@@ -1,7 +1,10 @@
 ﻿using BackGroundReportJob.Helpers;
 using BackGroundReportJob.Infrastructure.Repositories.Interface;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text.Json;
 
 namespace BackGroundReportJob
 {
@@ -36,5 +39,47 @@ namespace BackGroundReportJob
             }
             _logger.LogInformation("Next scheduled run: {next}", timerInfo?.ScheduleStatus?.Next);
         }
+
+        [Function("UpdateReportStatus")]
+        public async Task<HttpResponseData> UpdateReportStatus(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "reports/{id:guid}/status")] HttpRequestData req,
+            Guid id)
+        {
+            using var reader = new StreamReader(req.Body);
+            var body = await reader.ReadToEndAsync();
+            var payload = JsonSerializer.Deserialize<ReportStatusUpdateRequest>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (payload == null)
+            {
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync("Invalid request payload.");
+                return badResponse;
+            }
+
+            var result = await _reportService.UpdateReportStatusAsync(id, payload.IsEnabled);
+
+            var response = req.CreateResponse(result ? HttpStatusCode.OK : HttpStatusCode.NotFound);
+            await response.WriteStringAsync(result ? "Report status updated successfully." : "Report not found.");
+            return response;
+        }
+
+        [Function("GetAllReports")]
+        public async Task<HttpResponseData> GetAllReports(
+           [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports")] HttpRequestData req)
+        {
+            var reports = await _reportService.GetAllReportConfigurationsAsync();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+
+            await response.WriteAsJsonAsync(reports);
+
+            return response;
+        }
+
+    }
+
+    public class ReportStatusUpdateRequest
+    {
+        public bool IsEnabled { get; set; }
     }
 }
