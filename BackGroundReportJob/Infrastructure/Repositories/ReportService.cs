@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using BackGroundReportJob.Enums;
 using BackGroundReportJob.Infrastructure.Repositories.Interface;
 using BackGroundReportJob.Models;
 using BackGroundReportJob.Services.Interface;
@@ -14,17 +15,20 @@ namespace BackGroundReportJob.Infrastructure.Repositories
         private readonly IReportConfigurationRepository _reportConfigurationRepository;
         private readonly ILogger<ReportService> _logger;
         private readonly string _reportDirectory;
+        private readonly IEmailService _emailService;
 
         public ReportService(
             IEmployeeService employeeService,
             IReportConfigurationRepository reportConfigurationRepository,
             IConfiguration configuration,
-            ILogger<ReportService> logger)
+            ILogger<ReportService> logger,
+            IEmailService emailService)
         {
             _employeeService = employeeService;
             _reportConfigurationRepository = reportConfigurationRepository;
             _logger = logger;
             _reportDirectory = configuration["ReportOutputPath"] ?? @"D:\BackgroundGeneratedReport\Employee";
+            _emailService = emailService;
         }
         public async Task<IEnumerable<ReportConfigurationEntity>> GetAllReportConfigurationsAsync()
         {
@@ -70,6 +74,29 @@ namespace BackGroundReportJob.Infrastructure.Repositories
             var blobContainerClient = new BlobContainerClient(connectionString, containerName);
             await blobContainerClient.CreateIfNotExistsAsync();
 
+            // ✉️ Get all Admin employees for notifications
+            var adminEmployees = employees.Where(e => e.Role == EmployeeRole.Admin && !string.IsNullOrEmpty(e.Email)).ToList();
+            if (!adminEmployees.Any())
+            {
+                _logger.LogWarning("No admin employees found to send report notifications.");
+            }
+
+            // 📂 Load HTML email template
+            string templatePath = Path.Combine(
+                 AppContext.BaseDirectory,
+                 "EmailTemplate",
+                 "ReportNotificationTemplate.html"
+             );
+
+            if (!File.Exists(templatePath))
+
+            {
+                _logger.LogError($"Email template not found: {templatePath}");
+                return;
+            }
+
+            string htmlTemplate = await File.ReadAllTextAsync(templatePath);
+
             foreach (var report in reportsToGenerate)
             {
                 var frequencyText = report.Frequency.ToString();
@@ -90,8 +117,25 @@ namespace BackGroundReportJob.Infrastructure.Repositories
                 using var stream = File.OpenRead(filePath);
                 var blobClient = blobContainerClient.GetBlobClient(fileName);
                 await blobClient.UploadAsync(stream, overwrite: true);
+                _logger.LogInformation($"Employee Report uploaded successfully: {blobClient.Uri}");
 
-                _logger.LogInformation($" Employee Report uploaded successfully: {blobClient.Uri}");
+                // 3️⃣ Send Email to Admins
+                foreach (var admin in adminEmployees)
+                {
+                    string personalizedHtml = htmlTemplate
+                        .Replace("{{AdminName}}", admin.Name)
+                        .Replace("{{ReportName}}", report.ReportName)
+                        .Replace("{{GeneratedOn}}", DateTime.Now.ToString("f"))
+                        .Replace("{{ReportLink}}", blobClient.Uri.ToString());
+
+                    await _emailService.SendEmailAsync(
+                        admin.Email,
+                        $"{report.ReportName} Generated Successfully",
+                        personalizedHtml
+                    );
+
+                    _logger.LogInformation($"Notification email sent to Admin: {admin.Email}");
+                }
             }
         }
     }

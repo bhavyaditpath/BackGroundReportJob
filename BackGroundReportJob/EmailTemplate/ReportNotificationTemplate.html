@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Report Generated</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            background: #fff;
+            padding: 30px;
+            margin: 30px auto;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #0d6efd;
+        }
+
+        p {
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Report Generated Successfully</h2>
+        <p>Dear {{AdminName}},</p>
+        <p>The report <strong>{{ReportName}}</strong> has been generated successfully on <strong>{{GeneratedOn}}</strong>.</p>
+        <p>You can view it in the system or download it from the report dashboard.</p>
+        <p>Best regards,<br /><strong>Background Job System</strong></p>
+        <div class="footer">This is an automated notification. Please do not reply.</div>
+    </div>
+</body>
+</html>
